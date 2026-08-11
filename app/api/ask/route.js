@@ -49,23 +49,55 @@ async function generateChatTitle(question) {
   try {
     const { text } = await generateText({
       model: openrouter(process.env.OPENROUTER_MODEL),
-      temperature: 0.3,
-      maxOutputTokens: 20,
+      temperature: 0.2,
+      maxOutputTokens: 12,
       messages: [
         {
           role: 'system',
           content:
-            'You write short chat titles. Reply with ONLY a 3-6 word title summarizing the user question below. No quotes, no punctuation at the end, no preamble.',
+            'You convert a user question into a short chat title, 2-5 words, Title Case. ' +
+            'Output ONLY the title itself - no quotes, no punctuation, no prefix like "Title:" ' +
+            'or "The user is asking about", no explanation. Just the bare title words.\n\n' +
+            'Example question: "What is my deductible amount?"\n' +
+            'Example title: Deductible Amount\n\n' +
+            'Example question: "Does this policy cover flood damage?"\n' +
+            'Example title: Flood Coverage',
         },
         { role: 'user', content: question },
       ],
     });
-    const cleaned = text.trim().replace(/^["']|["']$/g, '');
+
+    const cleaned = sanitizeTitle(text);
     return cleaned || truncateTitle(question);
   } catch (err) {
     console.error('Title generation failed, falling back to truncation:', err);
     return truncateTitle(question);
   }
+}
+
+// Defends against the model ignoring instructions and echoing a full
+// sentence/preamble instead of a short title.
+function sanitizeTitle(raw) {
+  let t = raw.trim();
+
+  // Strip common preambles some models add despite instructions.
+  t = t.replace(/^(title|chat title)\s*:\s*/i, '');
+  t = t.replace(/^(the user is asking about|this (chat|conversation) is about|about)\s*:?\s*/i, '');
+
+  // Strip wrapping quotes and trailing punctuation.
+  t = t.replace(/^["'\u201c\u2018]+|["'\u201d\u2019]+$/g, '');
+  t = t.replace(/[.?!]+$/g, '');
+
+  // Only keep the first line, in case the model added extra commentary.
+  t = t.split('\n')[0].trim();
+
+  // Hard cap the word count so a runaway sentence never slips through.
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length > 6) {
+    t = words.slice(0, 6).join(' ');
+  }
+
+  return t;
 }
 
 const encoder = new TextEncoder();
