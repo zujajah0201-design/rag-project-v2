@@ -1,7 +1,7 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { pipeline } from '@xenova/transformers';
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { streamText, generateText } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -37,9 +37,35 @@ async function embedText(text) {
   return Array.from(output.data);
 }
 
-function makeTitle(question) {
+// Fallback title if the LLM call fails - just a plain truncation.
+function truncateTitle(question) {
   const trimmed = question.trim().replace(/\s+/g, ' ');
   return trimmed.length > 60 ? `${trimmed.slice(0, 57)}...` : trimmed;
+}
+
+// Ask the LLM itself to summarize the opening question into a short title,
+// instead of just cutting the text off at N characters.
+async function generateChatTitle(question) {
+  try {
+    const { text } = await generateText({
+      model: openrouter(process.env.OPENROUTER_MODEL),
+      temperature: 0.3,
+      maxOutputTokens: 20,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You write short chat titles. Reply with ONLY a 3-6 word title summarizing the user question below. No quotes, no punctuation at the end, no preamble.',
+        },
+        { role: 'user', content: question },
+      ],
+    });
+    const cleaned = text.trim().replace(/^["']|["']$/g, '');
+    return cleaned || truncateTitle(question);
+  } catch (err) {
+    console.error('Title generation failed, falling back to truncation:', err);
+    return truncateTitle(question);
+  }
 }
 
 const encoder = new TextEncoder();
@@ -74,9 +100,10 @@ export async function POST(req) {
       }
       chat = data;
     } else {
+      const generatedTitle = await generateChatTitle(question);
       const { data, error } = await supabase
         .from('chats')
-        .insert([{ user_id: session.user.id, title: makeTitle(question) }])
+        .insert([{ user_id: session.user.id, title: generatedTitle }])
         .select()
         .single();
 

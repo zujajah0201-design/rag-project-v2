@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -12,6 +13,8 @@ import {
   LogOut,
   Menu,
   X,
+  Pencil,
+  Check,
 } from "lucide-react";
 
 type Message = {
@@ -45,8 +48,10 @@ function MarkdownMessage({ content }: { content: string }) {
   );
 }
 
-export default function Home() {
+function ChatApp() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -56,11 +61,23 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [chatsLoading, setChatsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadChats();
+  }, []);
+
+  // Restore the active chat from the URL (?chat=id) once, so refreshing the
+  // page keeps you on the same conversation instead of bouncing to "New chat".
+  useEffect(() => {
+    const chatIdFromUrl = searchParams.get("chat");
+    if (chatIdFromUrl) {
+      loadChat(chatIdFromUrl, { updateUrl: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -79,11 +96,15 @@ export default function Home() {
     setChatsLoading(false);
   }
 
-  async function loadChat(id: string) {
+  async function loadChat(id: string, opts: { updateUrl?: boolean } = {}) {
+    const { updateUrl = true } = opts;
     setSidebarOpen(false);
     if (id === activeChatId) return;
     setActiveChatId(id);
     setMessages([]);
+    if (updateUrl) {
+      router.push(`/?chat=${id}`, { scroll: false });
+    }
     try {
       const res = await fetch(`/api/chats/${id}`);
       const data = await res.json();
@@ -107,6 +128,7 @@ export default function Home() {
     setMessages([]);
     setQuestion("");
     setSidebarOpen(false);
+    router.push("/", { scroll: false });
   }
 
   async function deleteChat(id: string, e: React.MouseEvent) {
@@ -119,6 +141,35 @@ export default function Home() {
       if (!res.ok) setChats(prevChats);
     } catch (err) {
       console.error("Failed to delete chat:", err);
+      setChats(prevChats);
+    }
+  }
+
+  function startRename(chat: ChatSummary, e: React.MouseEvent) {
+    e.stopPropagation();
+    setRenamingId(chat.id);
+    setRenameValue(chat.title);
+  }
+
+  async function saveRename(id: string, e?: React.MouseEvent | React.FormEvent) {
+    e?.stopPropagation();
+    e?.preventDefault();
+    const trimmed = renameValue.trim();
+    setRenamingId(null);
+    if (!trimmed) return;
+
+    const prevChats = chats;
+    setChats((c) => c.map((chat) => (chat.id === id ? { ...chat, title: trimmed } : chat)));
+
+    try {
+      const res = await fetch(`/api/chats/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      if (!res.ok) setChats(prevChats);
+    } catch (err) {
+      console.error("Failed to rename chat:", err);
       setChats(prevChats);
     }
   }
@@ -218,6 +269,7 @@ export default function Home() {
         const isNewChat = !activeChatId;
         if (isNewChat) {
           setActiveChatId(m.chatId);
+          router.replace(`/?chat=${m.chatId}`, { scroll: false });
           setChats((c) => [
             {
               id: m.chatId,
@@ -290,24 +342,55 @@ export default function Home() {
             </p>
           ) : (
             chats.map((chat) => (
-              <button
+              <div
                 key={chat.id}
-                onClick={() => loadChat(chat.id)}
-                className={`group w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition ${
+                onClick={() => renamingId !== chat.id && loadChat(chat.id)}
+                className={`group w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition cursor-pointer ${
                   chat.id === activeChatId
                     ? "bg-violet-600/20 text-white"
                     : "text-gray-300 hover:bg-gray-800"
                 }`}
               >
                 <MessageSquare className="h-4 w-4 shrink-0 text-gray-500" />
-                <span className="flex-1 truncate">{chat.title}</span>
-                <span
-                  onClick={(e) => deleteChat(chat.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-700 hover:text-red-400 transition shrink-0"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </span>
-              </button>
+                {renamingId === chat.id ? (
+                  <form
+                    onSubmit={(e) => saveRename(chat.id, e)}
+                    className="flex-1 flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={(e) => saveRename(chat.id, e)}
+                      onKeyDown={(e) => e.key === "Escape" && setRenamingId(null)}
+                      className="flex-1 min-w-0 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500"
+                    />
+                    <button
+                      type="submit"
+                      className="p-1 rounded hover:bg-gray-700 text-gray-300 shrink-0"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <span className="flex-1 truncate">{chat.title}</span>
+                    <span
+                      onClick={(e) => startRename(chat, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-700 hover:text-violet-400 transition shrink-0"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </span>
+                    <span
+                      onClick={(e) => deleteChat(chat.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-700 hover:text-red-400 transition shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </span>
+                  </>
+                )}
+              </div>
             ))
           )}
         </div>
@@ -426,5 +509,13 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <ChatApp />
+    </Suspense>
   );
 }

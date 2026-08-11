@@ -41,6 +41,39 @@ export async function GET(req, { params }) {
   return Response.json({ chat, messages });
 }
 
+// PATCH /api/chats/[id] - rename a chat
+export async function PATCH(req, { params }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const chat = await getOwnedChat(id, session.user.id);
+  if (!chat) {
+    return Response.json({ error: 'Chat not found' }, { status: 404 });
+  }
+
+  const { title } = await req.json();
+  const trimmed = (title || '').trim();
+  if (!trimmed) {
+    return Response.json({ error: 'Title is required' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('chats')
+    .update({ title: trimmed.slice(0, 100) })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({ chat: data });
+}
+
 // DELETE /api/chats/[id] - remove a chat (and its messages, via cascade)
 export async function DELETE(req, { params }) {
   const session = await getServerSession(authOptions);
