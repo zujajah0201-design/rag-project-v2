@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    const { name, email, password } = await req.json();
 
-    if (!email || !password) {
-      return Response.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!name || !email || !password) {
+      return Response.json({ error: 'Name, email and password are required' }, { status: 400 });
     }
 
     const { data: existingUser } = await supabase
@@ -23,7 +23,7 @@ export async function POST(req) {
 
     const { error } = await supabase
       .from('users')
-      .insert([{ email, password: hashedPassword }]);
+      .insert([{ name, email, password: hashedPassword }]);
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
