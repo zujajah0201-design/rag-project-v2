@@ -38,42 +38,24 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex bg-white">
       {/* Left hero panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gray-950 relative flex-col justify-center px-16">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="h-10 w-10 rounded-full bg-violet-600 flex items-center justify-center">
-              <ShieldCheck className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white">Harborlight</span>
-          </div>
-
-          <h1 className="text-4xl font-bold text-white leading-tight mb-6">
-            Understand your policy with confidence.
-          </h1>
-
-          <p className="text-gray-400 leading-relaxed mb-4">
-            Ask questions about your homeowners policy and get instant answers
-            grounded in your actual policy document.
-          </p>
-          <p className="text-gray-400 leading-relaxed">
-            No more digging through pages of fine print for coverage limits
-            and exclusions.
-          </p>
-
-          <div className="border-t border-gray-800 mt-12 pt-6">
-            <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">
-              In the moment
-            </p>
-            <p className="text-lg font-semibold text-white">
-              Chat with your policy, instantly.
-            </p>
-          </div>
-        </div>
+      <div className="hidden lg:block lg:w-1/2 relative">
+        <img
+          src="/login-hero.jpg"
+          alt="Harborlight"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
       </div>
 
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center bg-gray-50 px-4 py-12">
         <div className="w-full max-w-sm">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="h-10 w-10 rounded-full bg-violet-600 flex items-center justify-center">
+              <ShieldCheck className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">Harborlight</span>
+          </div>
+
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
             <p className="text-sm text-gray-500 mt-1">
