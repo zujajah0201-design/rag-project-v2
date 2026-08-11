@@ -1,7 +1,7 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { pipeline } from '@xenova/transformers';
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText, generateText } from 'ai';
+import { streamText } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -44,13 +44,15 @@ function truncateTitle(question) {
 }
 
 // Ask the LLM itself to summarize the opening question into a short title,
-// instead of just cutting the text off at N characters.
+// instead of just cutting the text off at N characters. Uses streamText
+// (the same call path already proven to work for the main answer) rather
+// than generateText, then collects the streamed chunks into a string.
 async function generateChatTitle(question) {
   try {
-    const { text } = await generateText({
+    const result = streamText({
       model: openrouter(process.env.OPENROUTER_MODEL),
       temperature: 0.2,
-      maxOutputTokens: 12,
+      maxOutputTokens: 16,
       messages: [
         {
           role: 'system',
@@ -67,7 +69,12 @@ async function generateChatTitle(question) {
       ],
     });
 
-    const cleaned = sanitizeTitle(text);
+    let raw = '';
+    for await (const delta of result.textStream) {
+      raw += delta;
+    }
+
+    const cleaned = sanitizeTitle(raw);
     return cleaned || truncateTitle(question);
   } catch (err) {
     console.error('Title generation failed, falling back to truncation:', err);
