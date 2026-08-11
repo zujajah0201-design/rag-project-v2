@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL,
