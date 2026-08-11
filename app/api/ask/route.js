@@ -127,6 +127,7 @@ export async function POST(req) {
 
     // Resolve the chat this message belongs to, or create a new one
     let chat;
+    let isNewChat = false;
     if (chatId) {
       const { data, error } = await supabase
         .from('chats')
@@ -139,10 +140,12 @@ export async function POST(req) {
       }
       chat = data;
     } else {
-      const generatedTitle = await generateChatTitle(question);
+      // Insert immediately with a fast placeholder title so streaming can
+      // start right away - the real LLM-generated title is filled in below,
+      // in the background, without blocking the answer.
       const { data, error } = await supabase
         .from('chats')
-        .insert([{ user_id: session.user.id, title: generatedTitle }])
+        .insert([{ user_id: session.user.id, title: truncateTitle(question) }])
         .select()
         .single();
 
@@ -150,6 +153,7 @@ export async function POST(req) {
         return Response.json({ error: error.message }, { status: 500 });
       }
       chat = data;
+      isNewChat = true;
     }
 
     // Pull prior turns from this chat so the bot keeps conversational context
@@ -201,8 +205,13 @@ export async function POST(req) {
       },
     });
 
+    // Kick this off now, in parallel with the answer stream below - it is
+    // NOT awaited here so it never delays the first token of the answer.
+    const titlePromise = isNewChat ? generateChatTitle(question) : null;
+
     // Custom SSE stream: a "meta" frame with chat/source info up front,
-    // then "delta" frames as the model's answer streams in.
+    // then "delta" frames as the model's answer streams in, and a "title"
+    // frame later on once the background title generation finishes.
     const stream = new ReadableStream({
       async start(controller) {
         controller.enqueue(
@@ -216,6 +225,19 @@ export async function POST(req) {
         } catch (err) {
           controller.enqueue(sseFrame('error', { message: err.message }));
         }
+
+        if (titlePromise) {
+          try {
+            const finalTitle = await titlePromise;
+            if (finalTitle && finalTitle !== chat.title) {
+              await supabase.from('chats').update({ title: finalTitle }).eq('id', chat.id);
+              controller.enqueue(sseFrame('title', { chatId: chat.id, title: finalTitle }));
+            }
+          } catch (err) {
+            console.error('Background title update failed:', err);
+          }
+        }
+
         controller.close();
       },
     });

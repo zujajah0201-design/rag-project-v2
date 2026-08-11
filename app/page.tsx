@@ -254,6 +254,12 @@ function ChatApp() {
                 msg.id === assistantId ? { ...msg, content: snapshot } : msg
               )
             );
+          } else if (eventType === "title") {
+            setChats((c) =>
+              c.map((chat) =>
+                chat.id === data.chatId ? { ...chat, title: data.title } : chat
+              )
+            );
           }
         }
       }
