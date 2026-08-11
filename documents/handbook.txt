@@ -1,0 +1,368 @@
+Harborlight Mutual Insurance
+
+HomeGuard Plus — Homeowners Insurance Policy Document
+
+Policy Form: HG-PLUS-2026   |   Underwritten by Harborlight Mutual Insurance Company, a licensed insurer domiciled in the State of Illinois   |   This document is a specimen policy for reference purposes; actual coverage, limits, and premiums are stated in the Declarations Page issued to each policyholder.
+
+
+
+Section 1: Definitions
+
+Wherever used in this policy, the following terms have the meanings given below, unless the context clearly requires otherwise.
+
+"Actual Cash Value" (ACV) means replacement cost minus depreciation for age, wear, and condition at the time of loss.
+
+"Dwelling" means the residential structure described in the Declarations, including attached structures such as garages and porches, but excluding land.
+
+"Other Structures" means structures on the property not attached to the Dwelling, such as detached garages, sheds, and fences.
+
+"Personal Property" means household and personal belongings owned or used by an Insured, including furniture, clothing, and electronics.
+
+"Replacement Cost" means the cost to repair or replace damaged property with materials of similar kind and quality, without deduction for depreciation.
+
+"Deductible" means the amount of loss the Insured is responsible for before policy benefits apply, as stated in the Declarations.
+
+"Named Storm" means a hurricane, tropical storm, or tropical depression that has been given a name by the National Hurricane Center or a comparable meteorological authority.
+
+Section 2: Coverage Overview and Limits
+
+This policy provides the coverages described below, subject to the limits, deductibles, exclusions, and conditions stated throughout this document and in the Declarations Page for the specific policy issued.
+
+Coverage
+
+What It Covers
+
+Standard Limit
+
+Coverage A — Dwelling
+
+The main residential structure
+
+As stated in Declarations (typically 100% of estimated replacement cost)
+
+Coverage B — Other Structures
+
+Detached structures on the property
+
+10% of Coverage A limit
+
+Coverage C — Personal Property
+
+Household belongings, at Replacement Cost if endorsed
+
+50% of Coverage A limit
+
+Coverage D — Loss of Use
+
+Additional living expenses if the home is uninhabitable
+
+20% of Coverage A limit
+
+Coverage E — Personal Liability
+
+Legal liability for bodily injury or property damage to others
+
+$300,000 per occurrence (standard); higher limits available
+
+Coverage F — Medical Payments to Others
+
+Medical expenses for guests injured on the property, regardless of fault
+
+$5,000 per person
+
+
+
+Section 3: Perils Insured Against
+
+This policy is written on an "open perils" (formerly called "all-risk") basis for the Dwelling and Other Structures, meaning coverage applies to all direct physical loss unless the cause of loss is specifically excluded in Section 4. Coverage for Personal Property is written on a "named perils" basis, meaning only the following specifically listed causes of loss are covered:
+
+Fire or lightning
+
+Windstorm or hail (subject to separate wind/hail deductible in coastal and designated wind-prone counties)
+
+Explosion
+
+Riot or civil commotion
+
+Damage from aircraft or vehicles
+
+Smoke damage (excluding smoke from agricultural or industrial operations)
+
+Vandalism or malicious mischief
+
+Theft
+
+Falling objects
+
+Weight of ice, snow, or sleet
+
+Accidental discharge or overflow of water or steam from plumbing, heating, or air conditioning systems
+
+Sudden and accidental tearing apart, cracking, burning, or bulging of a steam or hot water heating system
+
+Freezing of plumbing, heating, or air conditioning systems, provided reasonable care was taken to maintain heat or shut off and drain the system
+
+Sudden and accidental damage from artificially generated electrical current
+
+Section 4: Exclusions
+
+This policy does not cover loss caused directly or indirectly by any of the following, regardless of any other cause or event contributing concurrently or in any sequence to the loss:
+
+4.1 Earth Movement
+
+Loss caused by earthquake, landslide, mudflow, sinkhole (except as provided under the optional Sinkhole Endorsement, HG-SINK-01, where filed and available), or other earth movement is excluded. Separate earthquake coverage is available by endorsement in eligible states.
+
+4.2 Water Damage — Flood and Surface Water
+
+Flood, surface water, waves, tidal water, overflow of a body of water, and water that backs up through sewers or drains is excluded, regardless of any other cause contributing concurrently. Flood insurance is available separately through the National Flood Insurance Program (NFIP) or eligible private flood carriers, and Harborlight Mutual can assist in placing such coverage upon request.
+
+4.3 Neglect
+
+Loss resulting from the Insured's failure to use reasonable means to protect covered property at and after the time of loss, or failure to maintain the property, is excluded.
+
+4.4 War and Nuclear Hazard
+
+Loss from war (declared or undeclared), civil war, insurrection, rebellion, revolution, or nuclear reaction, radiation, or radioactive contamination is excluded, regardless of cause.
+
+4.5 Government Action
+
+Destruction, confiscation, or seizure of property by order of any governmental or public authority is excluded, except that this exclusion does not apply to acts ordered by a civil authority to prevent the spread of fire, which are separately addressed under Coverage E extensions.
+
+4.6 Wear, Tear, and Mechanical Breakdown
+
+Wear and tear, marring, deterioration, inherent vice, latent defect, mechanical breakdown, rust, mold (except as provided under the Limited Mold Endorsement, subject to a $10,000 sublimit), wet or dry rot, and insect or vermin damage are excluded, as these are considered maintenance issues rather than sudden and accidental losses.
+
+4.7 Business Pursuits
+
+Loss arising from business activities conducted on the residence premises is excluded from this policy; a separate business owner's policy or endorsement is required for home-based business exposure exceeding incidental use.
+
+Section 5: Deductibles
+
+Standard policies carry an All-Other-Perils (AOP) deductible selected by the policyholder at binding, typically $1,000, $2,500, or $5,000, which applies per occurrence to most covered losses. In the 22 states and coastal counties designated by Harborlight Mutual as wind/hail exposed, a separate percentage-based Wind/Hail Deductible applies, typically 1% to 5% of the Coverage A limit, in place of the flat AOP deductible for windstorm and hail losses specifically. Named Storm losses in coastal Tier 1 counties carry a mandatory minimum 2% Named Storm Deductible, which cannot be waived or reduced below this level regardless of the AOP deductible selected.
+
+Deductible Type
+
+Typical Range
+
+Applies To
+
+All-Other-Perils (AOP)
+
+$1,000 – $5,000 flat
+
+Fire, theft, liability-adjacent property loss, most non-wind perils
+
+Wind/Hail (where applicable)
+
+1% – 5% of Coverage A
+
+Windstorm and hailstorm losses in designated counties
+
+Named Storm (coastal Tier 1)
+
+2% minimum, up to 5%
+
+Hurricane and named tropical storm losses
+
+Water Backup Endorsement
+
+$500 flat, separate from AOP
+
+Sewer/drain backup, sump pump overflow (if endorsed)
+
+
+
+Section 6: Claims Process
+
+6.1 Duties After Loss
+
+In the event of a covered loss, the Insured must: (1) give prompt notice to Harborlight Mutual or its authorized agent, generally within 60 days of discovering the loss; (2) protect the property from further damage, making reasonable and necessary repairs to prevent additional loss, and keep records of expenses for such repairs, which may be reimbursed; (3) prepare an inventory of damaged personal property, showing quantity, description, and amount of loss; (4) permit Harborlight Mutual to inspect the property and examine records as often as reasonably required; and (5) submit a signed, sworn proof of loss within 60 days of request, if requested.
+
+6.2 Claims Filing Timeline
+
+Step
+
+Typical Timeframe
+
+First Notice of Loss (FNOL)
+
+As soon as reasonably possible; recommended within 5 days
+
+Initial adjuster contact
+
+Within 2 business days of FNOL for standard claims; within 24 hours for claims coded as emergency/catastrophe
+
+Property inspection scheduled
+
+Within 5–10 business days of FNOL, subject to catastrophe surge conditions
+
+Claim decision communicated
+
+Within 15 business days of inspection, absent extenuating circumstances requiring further investigation
+
+Payment issued after approval
+
+Within 5 business days of claim approval and any required documentation
+
+
+
+6.3 Replacement Cost Settlement
+
+For Personal Property covered on a Replacement Cost basis (available by endorsement; otherwise settled at Actual Cash Value), Harborlight Mutual initially pays the Actual Cash Value of the loss. The Insured has 180 days from the date of loss to complete repairs or replacement and submit documentation; upon doing so, Harborlight Mutual pays the difference between ACV and full Replacement Cost. If repairs or replacement are not completed within 180 days, only the ACV payment is due, though extensions may be granted in cases of documented contractor delay or permitting backlogs.
+
+6.4 Appraisal and Disputes
+
+If the Insured and Harborlight Mutual disagree on the amount of loss, either party may demand an appraisal. Each party selects a competent, disinterested appraiser; the two appraisers select an umpire, and if they cannot agree within 15 days, either party may request a court to appoint one. An agreement by any two of the three (the appraisers and the umpire) sets the amount of loss. Each party pays its own appraiser and splits the umpire's fee equally.
+
+Section 7: Conditions
+
+7.1 Policy Period and Territory
+
+This policy applies to loss that occurs during the policy period shown in the Declarations, generally a 12-month term, and to property located within the United States, its territories, or Canada unless otherwise endorsed. Coverage automatically renews unless either party provides notice of non-renewal at least 30 days (60 days in certain states, per state-specific requirements) before the expiration date.
+
+7.2 Cancellation
+
+The policyholder may cancel at any time by providing written notice; Harborlight Mutual will refund unearned premium on a pro-rata basis. Harborlight Mutual may cancel for non-payment of premium with 10 days' written notice, or for other permitted reasons (such as material misrepresentation on the application) with 30 days' written notice during the first 60 days of a new policy, or as otherwise limited by state law after the policy has been in force longer.
+
+7.3 Other Insurance
+
+If a loss is covered by this policy and by any other insurance, Harborlight Mutual will pay only its proportional share, based on the relative limits of all applicable policies, unless this policy is specifically written as excess coverage.
+
+7.4 Subrogation
+
+If Harborlight Mutual pays a claim, it may require the Insured to assign their rights of recovery against any responsible third party, up to the amount paid. The Insured must cooperate with this process and must not do anything after a loss to impair Harborlight Mutual's subrogation rights.
+
+7.5 Concealment or Fraud
+
+This policy is void as to any Insured who has, before or after a loss, intentionally concealed or misrepresented any material fact or circumstance, engaged in fraudulent conduct, or made false statements relating to this insurance or a claim under it.
+
+Section 8: Optional Endorsements
+
+Endorsement
+
+Description
+
+Typical Additional Premium
+
+Scheduled Personal Property
+
+Itemized coverage for jewelry, art, collectibles above standard sublimits
+
+Varies by appraised value, typically 0.5%–2% of item value annually
+
+Water Backup & Sump Overflow
+
+Covers sewer/drain backup and sump pump failure, excluded by default
+
+$50 – $150/year depending on limit selected
+
+Service Line Coverage
+
+Repair/replacement of buried utility lines (water, sewer, electrical) on the property
+
+$30 – $60/year
+
+Equipment Breakdown
+
+Mechanical/electrical breakdown of HVAC, appliances, and home systems
+
+$25 – $75/year
+
+Identity Theft Restoration
+
+Expense reimbursement and case management for identity theft recovery
+
+$25/year, $15,000 limit standard
+
+Home-Based Business Endorsement
+
+Extends limited liability and property coverage for qualifying home businesses
+
+Varies by business type and revenue
+
+
+
+Section 9: Premium Factors and Discounts
+
+Premiums are calculated based on numerous rating factors including Coverage A limit, construction type, roof age and material, location-based catastrophe risk (wildfire, wind, hail, and flood zone proximity), claims history (typically the trailing 5–7 years), credit-based insurance score where permitted by state law, and selected deductibles. The following discounts may apply and can be combined unless otherwise noted:
+
+Multi-policy (bundling with auto or umbrella coverage): up to 15% discount
+
+Protective devices (monitored alarm, smoke detectors, water leak sensors): up to 10% discount
+
+New or updated roof (within 10 years, impact-resistant materials): up to 20% discount in wind/hail states
+
+Claims-free discount (5+ years without a filed claim): up to 10% discount
+
+New home discount (constructed within the last 10 years): up to 12% discount
+
+Loyalty discount (continuously insured with Harborlight Mutual for 3+ years): up to 5% discount
+
+Section 10: Personal Liability Coverage in Detail
+
+10.1 What Coverage E Protects Against
+
+Coverage E — Personal Liability protects the Insured against claims or lawsuits for bodily injury or property damage to others for which the Insured is legally responsible, arising from personal (non-business) activities, anywhere in the world, subject to policy limits and exclusions. This includes, for example, a visitor slipping on an icy walkway, a child accidentally breaking a neighbor's window, or a dog bite occurring off the insured premises. Harborlight Mutual will also pay reasonable legal defense costs for a covered claim, in addition to and not reduced by the liability limit, until the limit of liability has been exhausted by settlement or judgment.
+
+10.2 Dog and Animal Liability
+
+Liability arising from dog bites or other animal-related injury is covered under Coverage E, subject to standard limits, except for certain breeds identified on Harborlight Mutual's restricted breed list, which require a Canine Liability Endorsement with a separate sublimit (typically $25,000, well below the standard Coverage E limit) or, in some states where breed-based restrictions are prohibited by law, are instead subject to an individual risk assessment based on the specific animal's bite history rather than breed alone.
+
+10.3 Watercraft and Recreational Vehicle Exclusions
+
+Liability arising from the ownership or operation of watercraft with an engine exceeding 25 horsepower, aircraft, and most motorized recreational vehicles is excluded from Coverage E and requires separate specialty insurance. Small watercraft (under 25 horsepower, including most canoes, kayaks, and small fishing boats), non-motorized vehicles, and golf carts used only on the residence premises or on golf courses remain covered under the base policy.
+
+Section 11: Loss of Use and Additional Living Expenses
+
+If a covered loss renders the Dwelling uninhabitable, Coverage D reimburses reasonable additional costs of maintaining the household's normal standard of living while repairs are completed — including temporary housing, increased transportation costs to work or school resulting from a temporary relocation, and reasonable increases in meal costs if cooking facilities are unavailable at the temporary residence. Coverage D does not reimburse normal expenses the household would have incurred regardless of the loss (such as the mortgage payment on the damaged home, which continues to be owed and is not covered by this policy) — rather, it covers the incremental increase in living costs caused specifically by the temporary displacement. Coverage D benefits continue for the shortest reasonable time required to repair or replace the property, or until the Coverage D limit is exhausted, whichever occurs first.
+
+Section 12: Valuation and Underinsurance Guidance
+
+Harborlight Mutual strongly encourages policyholders to review their Coverage A limit annually, particularly after major renovations, to help ensure the limit reflects current local construction costs, which have historically outpaced general inflation in many markets. Policies enrolled in the optional Extended Replacement Cost Endorsement receive an additional 25% of the Coverage A limit automatically in the event that a total loss rebuild exceeds the stated limit due to a documented increase in regional construction costs, such as those following a widespread regional catastrophe that strains local labor and materials supply. Without this endorsement, claims are capped strictly at the stated Coverage A limit even if actual rebuild costs exceed it, underscoring the importance of accurate valuation at the time of binding and at each renewal.
+
+Section 13: Frequently Asked Claims Questions
+
+13.1 Does filing a claim automatically increase my premium?
+
+Not automatically, though claims history is one of several rating factors considered at renewal, as described in Section 9. A single weather-related claim in a region with widespread catastrophe losses typically has less individual rating impact than a pattern of multiple claims tied to property maintenance issues, since the latter is viewed as a stronger predictor of future losses specific to that property.
+
+13.2 What happens if I disagree with the adjuster's damage assessment?
+
+Policyholders may request a second inspection by a senior adjuster at no cost, and if disagreement continues, may invoke the formal Appraisal process described in Section 6.4. Policyholders are also always free to obtain independent contractor estimates to support their position during either of these steps.
+
+13.3 Am I covered while temporarily renting out my home (e.g., short-term rental platforms)?
+
+Standard HomeGuard Plus coverage does not extend to loss occurring during paid short-term rental of the Dwelling, as this is considered a business activity under the exclusion described in Section 4.7. Policyholders who rent their home, even occasionally, through short-term rental platforms should contact Harborlight Mutual to add the Short-Term Rental Endorsement, which extends both property and liability coverage to cover paying guests, subject to additional premium based on rental frequency.
+
+Section 14: State-Specific Variations
+
+Because insurance is regulated at the state level in the United States, certain provisions of this specimen policy vary by the state in which the property is located. Common variations include: minimum notice periods for non-renewal or cancellation (ranging from 10 to 60 days depending on the reason and state); availability and structure of wind/hail and Named Storm deductibles (generally applicable only in designated coastal and wind-prone states); permissibility of credit-based insurance scoring in premium calculation (prohibited in several states including California, Massachusetts, and Maryland); and mandatory offer requirements for certain endorsements, such as flood or earthquake coverage disclosures, which some states require insurers to formally offer and document a decline of, even though the base policy excludes these perils. The Declarations Page and any state-specific amendatory endorsements issued with an individual policy always govern over the general provisions described in this specimen document where a conflict exists.
+
+Section 15: Claims Examples and Scenarios
+
+The following illustrative scenarios are provided for educational purposes to help policyholders understand how coverage typically applies; actual claim outcomes depend on the specific facts of each loss and the terms of the individual policy in force.
+
+15.1 Scenario: Kitchen Fire
+
+A grease fire starts on the stovetop and spreads to nearby cabinetry before being extinguished, causing smoke damage throughout the first floor and structural damage to the kitchen. This loss is covered under the open-perils Dwelling coverage (fire, Section 3) and the named-peril Personal Property coverage (smoke damage, Section 3), subject to the policyholder's AOP deductible. If the kitchen is unusable during repairs and the family temporarily relocates, Coverage D would reimburse the incremental cost of temporary housing and increased meal expenses, as described in Section 11.
+
+15.2 Scenario: Basement Sewer Backup
+
+Heavy rainfall causes municipal sewer lines to back up, sending wastewater into the finished basement through a floor drain. Because this loss originates from a sewer/drain backup rather than direct surface flooding, it is excluded under the base policy (Section 4.2) unless the Water Backup & Sump Overflow Endorsement (Section 8) has been added, in which case the loss would be covered subject to the endorsement's separate $500 deductible and selected coverage limit, independent of the AOP deductible.
+
+15.3 Scenario: Hurricane Wind Damage in a Coastal County
+
+A named hurricane causes wind damage to the roof and exterior siding of a home located in a designated coastal Tier 1 county. Wind damage from a hurricane is a covered peril under the open-perils Dwelling coverage, but because the storm meets the definition of a Named Storm (Section 1) and the property is in a Tier 1 county, the mandatory minimum 2% Named Storm Deductible described in Section 5 applies in place of the standard AOP deductible, meaning the policyholder's out-of-pocket responsibility is calculated as a percentage of the Coverage A limit rather than the flat dollar deductible that would apply to non-wind, non-storm losses.
+
+15.4 Scenario: Stolen Bicycle from an Unlocked Garage
+
+A bicycle stored in an attached, unlocked garage is stolen. Theft is a covered named peril under Personal Property coverage (Section 3) regardless of whether the garage was locked, since ordinary negligence such as forgetting to lock a door does not trigger the Neglect exclusion (Section 4.3), which applies to a failure to protect property after a loss has occurred or begun, not to before-the-fact carelessness that may have contributed to a theft occurring. The claim would be subject to the AOP deductible and any applicable per-category sublimit for unscheduled personal property such as bicycles, which is typically lower than the overall Coverage C limit unless the item is separately scheduled under the endorsement described in Section 8.
+
+Section 16: Policyholder Responsibilities Between Renewals
+
+Policyholders are responsible for promptly notifying Harborlight Mutual of material changes that could affect coverage or premium accuracy, including: renovations or additions that increase the Dwelling's replacement cost by more than 10%; installation of a swimming pool, trampoline, or other attractive nuisance that may affect liability exposure; changes in occupancy (such as converting the home to a rental property, addressed in Section 13.3); acquisition of high-value personal property that may exceed standard sublimits and warrant scheduling (Section 8); and any lapse in a required security or fire-protection system that was used as a basis for a discount described in Section 9. Failure to disclose material changes may affect claim payment or, in cases of material misrepresentation, could void coverage as described in Section 7.5.
+
+Section 17: Contact and Regulatory Information
+
+Harborlight Mutual Insurance Company is licensed and regulated by the Illinois Department of Insurance and is a member of the Illinois Property and Casualty Insurance Guaranty Association. Policyholders may file a complaint with their state Department of Insurance if a dispute cannot be resolved directly. Claims can be reported 24/7 via the Harborlight Mutual claims line, the mobile app, or the online policyholder portal. This specimen document is provided for general reference; the actual terms, conditions, limits, and premium applicable to any individual policy are governed solely by the issued policy documents and the Declarations Page on file with Harborlight Mutual.
+
