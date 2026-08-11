@@ -57,13 +57,23 @@ async function generateChatTitle(question) {
         {
           role: 'system',
           content:
-            'You convert a user question into a short chat title, 2-5 words, Title Case. ' +
-            'Output ONLY the title itself - no quotes, no punctuation, no prefix like "Title:" ' +
-            'or "The user is asking about", no explanation. Just the bare title words.\n\n' +
-            'Example question: "What is my deductible amount?"\n' +
-            'Example title: Deductible Amount\n\n' +
-            'Example question: "Does this policy cover flood damage?"\n' +
-            'Example title: Flood Coverage',
+            'Summarize the user\'s message into a short conversation title, the way a chat app names a new conversation.\n\n' +
+            'Rules:\n' +
+            '- 2 to 5 words only.\n' +
+            '- Title Case (capitalize each main word).\n' +
+            '- Describe the specific topic or question, not the app or the policy in general.\n' +
+            '- No punctuation at the start or end (no quotes, no period, no question mark).\n' +
+            '- No filler words like "About", "Regarding", "Question", "Inquiry" unless essential to meaning.\n' +
+            '- Do not restate that it is a question. Do not add any explanation, prefix, or commentary.\n' +
+            '- Output the title text ONLY, nothing else.\n\n' +
+            'Message: "What is my deductible amount?"\n' +
+            'Title: Deductible Amount\n\n' +
+            'Message: "Does this policy cover flood damage?"\n' +
+            'Title: Flood Damage Coverage\n\n' +
+            'Message: "How do I file a claim after a break-in?"\n' +
+            'Title: Filing a Burglary Claim\n\n' +
+            'Message: "Can I add my dog to the liability coverage?"\n' +
+            'Title: Adding Dog Liability Coverage',
         },
         { role: 'user', content: question },
       ],
