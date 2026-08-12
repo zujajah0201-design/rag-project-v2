@@ -30,8 +30,6 @@ type ChatSummary = {
   updated_at: string;
 };
 
-// Renders assistant answers (which come back as markdown) with proper
-// bold/italic/bullet/heading formatting instead of raw "**"/"-" characters.
 function MarkdownMessage({ content }: { content: string }) {
   return (
     <div
@@ -70,8 +68,6 @@ function ChatApp() {
     loadChats();
   }, []);
 
-  // Restore the active chat from the URL (?chat=id) once, so refreshing the
-  // page keeps you on the same conversation instead of bouncing to "New chat".
   useEffect(() => {
     const chatIdFromUrl = searchParams.get("chat");
     if (chatIdFromUrl) {
@@ -216,9 +212,8 @@ function ChatApp() {
       const decoder = new TextDecoder();
       let buffer = "";
       let fullText = "";
-      let meta: { chatId: string; chatTitle: string; sources?: string[] } | null =
-        null;
-      let titleUpdate: { chatId: string; title: string } | null = null;
+      let meta: { chatId: string; chatTitle: string; sources?: string[] } | null = null;
+      let pendingTitle: { chatId: string; title: string } | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -256,11 +251,9 @@ function ChatApp() {
               )
             );
           } else if (eventType === "title") {
-            // For a brand-new chat, the "meta" entry hasn't been pushed into
-            // `chats` yet at this point (that happens after the loop below),
-            // so this map would silently no-op. Remember it here and apply
-            // it when the chat is created further down.
-            titleUpdate = data;
+            // Capture for new-chat handling after the loop, AND update
+            // immediately if the chat already exists in the sidebar.
+            pendingTitle = data;
             setChats((c) =>
               c.map((chat) =>
                 chat.id === data.chatId ? { ...chat, title: data.title } : chat
@@ -282,22 +275,38 @@ function ChatApp() {
         if (isNewChat) {
           setActiveChatId(m.chatId);
           router.replace(`/?chat=${m.chatId}`, { scroll: false });
-          setChats((c) => [
-            {
-              id: m.chatId,
-              title:
-                titleUpdate && titleUpdate.chatId === m.chatId
-                  ? titleUpdate.title
-                  : m.chatTitle,
-              updated_at: new Date().toISOString(),
-            },
-            ...c,
-          ]);
+
+          // Use the LLM-generated title if we got one, otherwise fall back
+          // to the truncated question the backend sent in meta.
+          const finalTitle =
+            pendingTitle && pendingTitle.chatId === m.chatId
+              ? pendingTitle.title
+              : m.chatTitle;
+
+          setChats((c) => {
+            // Avoid duplicates if the chat somehow already got added
+            const without = c.filter((chat) => chat.id !== m.chatId);
+            return [
+              {
+                id: m.chatId,
+                title: finalTitle,
+                updated_at: new Date().toISOString(),
+              },
+              ...without,
+            ];
+          });
         } else {
+          // Existing chat — bump to top
           setChats((c) => {
             const updated = c.map((chat) =>
               chat.id === m.chatId
-                ? { ...chat, updated_at: new Date().toISOString() }
+                ? {
+                    ...chat,
+                    updated_at: new Date().toISOString(),
+                    ...(pendingTitle && pendingTitle.chatId === m.chatId
+                      ? { title: pendingTitle.title }
+                      : {}),
+                  }
                 : chat
             );
             updated.sort(
