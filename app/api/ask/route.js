@@ -1,19 +1,25 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { pipeline } from '@xenova/transformers';
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText, generateText } from 'ai';
+import { streamText } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+// Vercel's Hobby plan (with Fluid compute, on by default for new projects)
+// allows up to 300s per invocation, not 60s - bumping this so a slow
+// free-tier OpenRouter model + a cold-start embedding load don't get
+// killed by a timeout that's lower than what the plan actually allows.
+export const maxDuration = 300;
 
 const qdrant = new QdrantClient({
   url: process.env.QDRANT_URL,
   apiKey: process.env.QDRANT_API_KEY,
 });
 
+// OpenRouter exposes an OpenAI-compatible API, so we point the AI SDK's
+// OpenAI provider at it instead of api.openai.com.
 const openrouter = createOpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -35,11 +41,63 @@ async function embedText(text) {
   return Array.from(output.data);
 }
 
+// Fallback title if the LLM call fails - just a plain truncation.
 function truncateTitle(question) {
   const trimmed = question.trim().replace(/\s+/g, ' ');
   return trimmed.length > 60 ? `${trimmed.slice(0, 57)}...` : trimmed;
 }
 
+// Ask the LLM itself to summarize the opening question into a short title,
+// instead of just cutting the text off at N characters. Uses streamText
+// (the same call path already proven to work for the main answer) rather
+// than generateText, then collects the streamed chunks into a string.
+async function generateChatTitle(question) {
+  try {
+    const result = streamText({
+      model: openrouter(process.env.OPENROUTER_MODEL),
+      temperature: 0.2,
+      maxOutputTokens: 24, // bumped from 16 - avoids mid-word truncation on longer titles
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Summarize the user\'s message into a short conversation title, the way a chat app names a new conversation.\n\n' +
+            'Rules:\n' +
+            '- 2 to 5 words only.\n' +
+            '- Title Case (capitalize each main word).\n' +
+            '- Describe the specific topic or question, not the app or the policy in general.\n' +
+            '- No punctuation at the start or end (no quotes, no period, no question mark).\n' +
+            '- No filler words like "About", "Regarding", "Question", "Inquiry" unless essential to meaning.\n' +
+            '- Do not restate that it is a question. Do not add any explanation, prefix, or commentary.\n' +
+            '- Output the title text ONLY, nothing else.\n\n' +
+            'Message: "What is my deductible amount?"\n' +
+            'Title: Deductible Amount\n\n' +
+            'Message: "Does this policy cover flood damage?"\n' +
+            'Title: Flood Damage Coverage\n\n' +
+            'Message: "How do I file a claim after a break-in?"\n' +
+            'Title: Filing a Burglary Claim\n\n' +
+            'Message: "Can I add my dog to the liability coverage?"\n' +
+            'Title: Adding Dog Liability Coverage',
+        },
+        { role: 'user', content: question },
+      ],
+    });
+
+    let raw = '';
+    for await (const delta of result.textStream) {
+      raw += delta;
+    }
+
+    const cleaned = sanitizeTitle(raw);
+    return cleaned || truncateTitle(question);
+  } catch (err) {
+    console.error('Title generation failed, falling back to truncation:', err);
+    return truncateTitle(question);
+  }
+}
+
+// Normalizes a cleaned title string into consistent Title Case, so the
+// output doesn't purely depend on the model following instructions.
 function toTitleCase(str) {
   const smallWords = new Set(['a', 'an', 'the', 'of', 'to', 'in', 'on', 'and', 'or', 'for']);
   return str
@@ -51,100 +109,29 @@ function toTitleCase(str) {
     .join(' ');
 }
 
-// Extract keywords from the question as a last-resort fallback
-function keywordTitle(question) {
-  const stopWords = new Set([
-    'a','an','the','is','are','was','were','be','been','being','have','has','had',
-    'do','does','did','will','would','could','should','may','might','must','shall',
-    'can','need','dare','ought','used','to','of','in','for','on','with','at','by',
-    'from','as','into','through','during','before','after','above','below','between',
-    'under','again','further','then','once','here','there','when','where','why','how',
-    'all','each','few','more','most','other','some','such','no','nor','not','only',
-    'own','same','so','than','too','very','just','and','but','if','or','because',
-    'until','while','what','which','who','whom','this','that','these','those','am',
-    'it','its','i','me','my','myself','we','our','ours','ourselves','you','your',
-    'yours','yourself','yourselves','he','him','his','himself','she','her','hers',
-    'herself','they','them','their','theirs','themselves','give','get','tell','show',
-    'explain','describe','small','big','large','about','regarding','question','inquiry',
-    'ask','asking','tell','me','us','my','your'
-  ]);
-
-  const words = question.toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .split(/\s+/)
-    .filter(w => w.length > 2 && !stopWords.has(w));
-
-  if (words.length === 0) return truncateTitle(question);
-
-  // Deduplicate while preserving order
-  const seen = new Set();
-  const unique = words.filter(w => {
-    if (seen.has(w)) return false;
-    seen.add(w);
-    return true;
-  });
-
-  return toTitleCase(unique.slice(0, 4).join(' '));
-}
-
+// Defends against the model ignoring instructions and echoing a full
+// sentence/preamble instead of a short title.
 function sanitizeTitle(raw) {
-  if (!raw) return '';
   let t = raw.trim();
 
-  // Strip any "Title:" prefix
-  t = t.replace(/^(title|chat title|topic)\s*[:：]\s*/i, '');
+  // Strip common preambles some models add despite instructions.
+  t = t.replace(/^(title|chat title)\s*:\s*/i, '');
+  t = t.replace(/^(the user is asking about|this (chat|conversation) is about|about)\s*:?\s*/i, '');
 
-  // Strip wrapping quotes
+  // Strip wrapping quotes and trailing punctuation.
   t = t.replace(/^["'\u201c\u2018]+|["'\u201d\u2019]+$/g, '');
+  t = t.replace(/[.?!]+$/g, '');
 
-  // Strip trailing punctuation
-  t = t.replace(/[.?!]+$/, '');
-
-  // First line only
+  // Only keep the first line, in case the model added extra commentary.
   t = t.split('\n')[0].trim();
 
-  // Hard word cap
+  // Hard cap the word count so a runaway sentence never slips through.
   const words = t.split(/\s+/).filter(Boolean);
-  if (words.length > 6) t = words.slice(0, 6).join(' ');
-
-  // Reject only obvious meta-commentary
-  if (/^(the user|this is|here is|below is|above is)\b/i.test(t)) return '';
-
-  return t ? toTitleCase(t) : '';
-}
-
-async function generateChatTitle(question) {
-  try {
-    const { text } = await generateText({
-      model: openrouter(process.env.OPENROUTER_MODEL),
-      temperature: 0.1,
-      maxOutputTokens: 20,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Generate a 2-4 word chat title in Title Case. No punctuation. No explanation. Output ONLY the title text.',
-        },
-        {
-          role: 'user',
-          content: `Message: "${question}"\nTitle:`,
-        },
-      ],
-    });
-
-    console.log('[TITLE] Raw LLM output:', JSON.stringify(text));
-    const cleaned = sanitizeTitle(text);
-    console.log('[TITLE] Cleaned:', JSON.stringify(cleaned));
-
-    if (cleaned) return cleaned;
-  } catch (err) {
-    console.error('[TITLE] generateText failed:', err);
+  if (words.length > 6) {
+    t = words.slice(0, 6).join(' ');
   }
 
-  // Final fallback: keyword extraction (way better than raw truncation)
-  const fallback = keywordTitle(question);
-  console.log('[TITLE] Keyword fallback:', JSON.stringify(fallback));
-  return fallback;
+  return t ? toTitleCase(t) : '';
 }
 
 const encoder = new TextEncoder();
@@ -160,10 +147,12 @@ export async function POST(req) {
     }
 
     const { question, chatId } = await req.json();
+
     if (!question) {
       return Response.json({ error: 'Question is required' }, { status: 400 });
     }
 
+    // Resolve the chat this message belongs to, or create a new one
     let chat;
     let isNewChat = false;
     if (chatId) {
@@ -178,10 +167,12 @@ export async function POST(req) {
       }
       chat = data;
     } else {
-      const placeholder = truncateTitle(question);
+      // Insert immediately with a fast placeholder title so streaming can
+      // start right away - the real LLM-generated title is filled in below,
+      // in the background, without blocking the answer.
       const { data, error } = await supabase
         .from('chats')
-        .insert([{ user_id: session.user.id, title: placeholder }])
+        .insert([{ user_id: session.user.id, title: truncateTitle(question) }])
         .select()
         .single();
 
@@ -192,6 +183,7 @@ export async function POST(req) {
       isNewChat = true;
     }
 
+    // Pull prior turns from this chat so the bot keeps conversational context
     const { data: history } = await supabase
       .from('messages')
       .select('role, content')
@@ -207,12 +199,11 @@ export async function POST(req) {
     });
 
     const results = searchResponse.points;
-    const context = results.map((r) => r.payload.text).join('\n\n');
-    const sources = results.map((r) => r.payload.text);
+    const context = results.map(r => r.payload.text).join('\n\n');
+    const sources = results.map(r => r.payload.text);
 
-    await supabase.from('messages').insert([
-      { chat_id: chat.id, role: 'user', content: question },
-    ]);
+    // Save the user's turn right away, so it's not lost if the stream fails
+    await supabase.from('messages').insert([{ chat_id: chat.id, role: 'user', content: question }]);
 
     const result = streamText({
       model: openrouter(process.env.OPENROUTER_MODEL),
@@ -222,9 +213,9 @@ export async function POST(req) {
         {
           role: 'system',
           content:
-            "You are a helpful assistant that answers questions about the Harborlight HomeGuard Plus homeowners insurance policy. Only use the provided context to answer. If the answer is not in the context, say you don't know. Do not make up information. Format your answers in markdown (use **bold**, bullet points, etc. where it helps readability).",
+            'You are a helpful assistant that answers questions about the Harborlight HomeGuard Plus homeowners insurance policy. Only use the provided context to answer. If the answer is not in the context, say you don\'t know. Do not make up information. Format your answers in markdown (use **bold**, bullet points, etc. where it helps readability).',
         },
-        ...(history || []).map((m) => ({ role: m.role, content: m.content })),
+        ...(history || []).map(m => ({ role: m.role, content: m.content })),
         {
           role: 'user',
           content: `Context:\n${context}\n\nQuestion: ${question}`,
@@ -241,8 +232,15 @@ export async function POST(req) {
       },
     });
 
+    // Kick this off now, in parallel with the answer stream below - it is
+    // NOT awaited here so it never delays the first token of the answer.
     const titlePromise = isNewChat ? generateChatTitle(question) : null;
 
+    // Custom SSE stream: a "meta" frame with chat/source info up front,
+    // "delta" frames as the model's answer streams in, then the "title"
+    // frame (once background title generation finishes), and finally
+    // "done" - kept as the LAST event so a frontend that stops reading on
+    // "done" still receives the real title beforehand.
     const stream = new ReadableStream({
       async start(controller) {
         controller.enqueue(
@@ -259,19 +257,14 @@ export async function POST(req) {
           controller.enqueue(sseFrame('error', { message: err.message }));
         }
 
+        // Resolve and send the real title BEFORE "done", regardless of
+        // whether the answer stream succeeded or errored.
         if (titlePromise) {
           try {
             const finalTitle = await titlePromise;
-            // Always update DB and send event if we have a title,
-            // even if it happens to match (ensures frontend consistency)
-            if (finalTitle) {
-              await supabase
-                .from('chats')
-                .update({ title: finalTitle })
-                .eq('id', chat.id);
-              controller.enqueue(
-                sseFrame('title', { chatId: chat.id, title: finalTitle })
-              );
+            if (finalTitle && finalTitle !== chat.title) {
+              await supabase.from('chats').update({ title: finalTitle }).eq('id', chat.id);
+              controller.enqueue(sseFrame('title', { chatId: chat.id, title: finalTitle }));
             }
           } catch (err) {
             console.error('Background title update failed:', err);
