@@ -52,7 +52,7 @@ async function generateChatTitle(question) {
     const result = streamText({
       model: openrouter(process.env.OPENROUTER_MODEL),
       temperature: 0.2,
-      maxOutputTokens: 16,
+      maxOutputTokens: 24, // bumped from 16 - avoids mid-word truncation on longer titles
       messages: [
         {
           role: 'system',
@@ -92,6 +92,19 @@ async function generateChatTitle(question) {
   }
 }
 
+// Normalizes a cleaned title string into consistent Title Case, so the
+// output doesn't purely depend on the model following instructions.
+function toTitleCase(str) {
+  const smallWords = new Set(['a', 'an', 'the', 'of', 'to', 'in', 'on', 'and', 'or', 'for']);
+  return str
+    .split(' ')
+    .map((word, i) => {
+      if (i !== 0 && smallWords.has(word.toLowerCase())) return word.toLowerCase();
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
 // Defends against the model ignoring instructions and echoing a full
 // sentence/preamble instead of a short title.
 function sanitizeTitle(raw) {
@@ -114,7 +127,7 @@ function sanitizeTitle(raw) {
     t = words.slice(0, 6).join(' ');
   }
 
-  return t;
+  return t ? toTitleCase(t) : '';
 }
 
 const encoder = new TextEncoder();
@@ -220,22 +233,28 @@ export async function POST(req) {
     const titlePromise = isNewChat ? generateChatTitle(question) : null;
 
     // Custom SSE stream: a "meta" frame with chat/source info up front,
-    // then "delta" frames as the model's answer streams in, and a "title"
-    // frame later on once the background title generation finishes.
+    // "delta" frames as the model's answer streams in, then the "title"
+    // frame (once background title generation finishes), and finally
+    // "done" - kept as the LAST event so a frontend that stops reading on
+    // "done" still receives the real title beforehand.
     const stream = new ReadableStream({
       async start(controller) {
         controller.enqueue(
           sseFrame('meta', { chatId: chat.id, chatTitle: chat.title, sources })
         );
+
+        let streamErrored = false;
         try {
           for await (const delta of result.textStream) {
             controller.enqueue(sseFrame('delta', { text: delta }));
           }
-          controller.enqueue(sseFrame('done', {}));
         } catch (err) {
+          streamErrored = true;
           controller.enqueue(sseFrame('error', { message: err.message }));
         }
 
+        // Resolve and send the real title BEFORE "done", regardless of
+        // whether the answer stream succeeded or errored.
         if (titlePromise) {
           try {
             const finalTitle = await titlePromise;
@@ -246,6 +265,10 @@ export async function POST(req) {
           } catch (err) {
             console.error('Background title update failed:', err);
           }
+        }
+
+        if (!streamErrored) {
+          controller.enqueue(sseFrame('done', {}));
         }
 
         controller.close();
