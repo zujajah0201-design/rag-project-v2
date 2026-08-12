@@ -51,62 +51,100 @@ function toTitleCase(str) {
     .join(' ');
 }
 
+// Extract keywords from the question as a last-resort fallback
+function keywordTitle(question) {
+  const stopWords = new Set([
+    'a','an','the','is','are','was','were','be','been','being','have','has','had',
+    'do','does','did','will','would','could','should','may','might','must','shall',
+    'can','need','dare','ought','used','to','of','in','for','on','with','at','by',
+    'from','as','into','through','during','before','after','above','below','between',
+    'under','again','further','then','once','here','there','when','where','why','how',
+    'all','each','few','more','most','other','some','such','no','nor','not','only',
+    'own','same','so','than','too','very','just','and','but','if','or','because',
+    'until','while','what','which','who','whom','this','that','these','those','am',
+    'it','its','i','me','my','myself','we','our','ours','ourselves','you','your',
+    'yours','yourself','yourselves','he','him','his','himself','she','her','hers',
+    'herself','they','them','their','theirs','themselves','give','get','tell','show',
+    'explain','describe','small','big','large','about','regarding','question','inquiry',
+    'ask','asking','tell','me','us','my','your'
+  ]);
+
+  const words = question.toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
+
+  if (words.length === 0) return truncateTitle(question);
+
+  // Deduplicate while preserving order
+  const seen = new Set();
+  const unique = words.filter(w => {
+    if (seen.has(w)) return false;
+    seen.add(w);
+    return true;
+  });
+
+  return toTitleCase(unique.slice(0, 4).join(' '));
+}
+
 function sanitizeTitle(raw) {
   if (!raw) return '';
   let t = raw.trim();
 
-  t = t.replace(/^(title|chat title)\s*[:：]\s*/i, '');
-  t = t.replace(/^(the user is asking about|this (chat|conversation) is about|about)\s*[:：]?\s*/i, '');
+  // Strip any "Title:" prefix
+  t = t.replace(/^(title|chat title|topic)\s*[:：]\s*/i, '');
 
+  // Strip wrapping quotes
   t = t.replace(/^["'\u201c\u2018]+|["'\u201d\u2019]+$/g, '');
+
+  // Strip trailing punctuation
   t = t.replace(/[.?!]+$/, '');
 
+  // First line only
   t = t.split('\n')[0].trim();
 
+  // Hard word cap
   const words = t.split(/\s+/).filter(Boolean);
   if (words.length > 6) t = words.slice(0, 6).join(' ');
 
-  if (/\bthe user\b|\bthey (said|asked)\b|\bis asking\b/i.test(t)) return '';
+  // Reject only obvious meta-commentary
+  if (/^(the user|this is|here is|below is|above is)\b/i.test(t)) return '';
 
   return t ? toTitleCase(t) : '';
 }
 
-// KEY FIX: use generateText (not streamText) for a tiny 2-5 word title
 async function generateChatTitle(question) {
   try {
     const { text } = await generateText({
       model: openrouter(process.env.OPENROUTER_MODEL),
-      temperature: 0.2,
-      maxOutputTokens: 24,
+      temperature: 0.1,
+      maxOutputTokens: 20,
       messages: [
         {
           role: 'system',
           content:
-            'You generate short chat titles. Output ONLY the title text — no quotes, no explanation, no preamble.\n\n' +
-            'Rules:\n' +
-            '- 2 to 5 words.\n' +
-            '- Title Case.\n' +
-            '- Specific topic only; no filler words like "About" or "Question".\n' +
-            '- No punctuation.\n\n' +
-            'Examples:\n' +
-            'What is my deductible amount? → Deductible Amount\n' +
-            'Does this policy cover flood damage? → Flood Damage Coverage\n' +
-            'How do I file a claim after a break-in? → Filing Burglary Claim\n' +
-            'Can I add my dog to liability coverage? → Dog Liability Coverage\n' +
-            'hi → New Conversation\n' +
-            'hello → New Conversation\n\n' +
-            'If the message is a greeting or has no clear topic, output exactly: New Conversation',
+            'Generate a 2-4 word chat title in Title Case. No punctuation. No explanation. Output ONLY the title text.',
         },
-        { role: 'user', content: question },
+        {
+          role: 'user',
+          content: `Message: "${question}"\nTitle:`,
+        },
       ],
     });
 
+    console.log('[TITLE] Raw LLM output:', JSON.stringify(text));
     const cleaned = sanitizeTitle(text);
-    return cleaned || truncateTitle(question);
+    console.log('[TITLE] Cleaned:', JSON.stringify(cleaned));
+
+    if (cleaned) return cleaned;
   } catch (err) {
-    console.error('Title generation failed, falling back to truncation:', err);
-    return truncateTitle(question);
+    console.error('[TITLE] generateText failed:', err);
   }
+
+  // Final fallback: keyword extraction (way better than raw truncation)
+  const fallback = keywordTitle(question);
+  console.log('[TITLE] Keyword fallback:', JSON.stringify(fallback));
+  return fallback;
 }
 
 const encoder = new TextEncoder();
@@ -140,9 +178,10 @@ export async function POST(req) {
       }
       chat = data;
     } else {
+      const placeholder = truncateTitle(question);
       const { data, error } = await supabase
         .from('chats')
-        .insert([{ user_id: session.user.id, title: truncateTitle(question) }])
+        .insert([{ user_id: session.user.id, title: placeholder }])
         .select()
         .single();
 
@@ -223,7 +262,9 @@ export async function POST(req) {
         if (titlePromise) {
           try {
             const finalTitle = await titlePromise;
-            if (finalTitle && finalTitle !== chat.title) {
+            // Always update DB and send event if we have a title,
+            // even if it happens to match (ensures frontend consistency)
+            if (finalTitle) {
               await supabase
                 .from('chats')
                 .update({ title: finalTitle })
