@@ -218,6 +218,7 @@ function ChatApp() {
       let fullText = "";
       let meta: { chatId: string; chatTitle: string; sources?: string[] } | null =
         null;
+      let titleUpdate: { chatId: string; title: string } | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -255,6 +256,11 @@ function ChatApp() {
               )
             );
           } else if (eventType === "title") {
+            // For a brand-new chat, the "meta" entry hasn't been pushed into
+            // `chats` yet at this point (that happens after the loop below),
+            // so this map would silently no-op. Remember it here and apply
+            // it when the chat is created further down.
+            titleUpdate = data;
             setChats((c) =>
               c.map((chat) =>
                 chat.id === data.chatId ? { ...chat, title: data.title } : chat
@@ -279,7 +285,10 @@ function ChatApp() {
           setChats((c) => [
             {
               id: m.chatId,
-              title: m.chatTitle,
+              title:
+                titleUpdate && titleUpdate.chatId === m.chatId
+                  ? titleUpdate.title
+                  : m.chatTitle,
               updated_at: new Date().toISOString(),
             },
             ...c,
