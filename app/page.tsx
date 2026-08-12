@@ -30,6 +30,8 @@ type ChatSummary = {
   updated_at: string;
 };
 
+// Renders assistant answers (which come back as markdown) with proper
+// bold/italic/bullet/heading formatting instead of raw "**"/"-" characters.
 function MarkdownMessage({ content }: { content: string }) {
   return (
     <div
@@ -68,6 +70,8 @@ function ChatApp() {
     loadChats();
   }, []);
 
+  // Restore the active chat from the URL (?chat=id) once, so refreshing the
+  // page keeps you on the same conversation instead of bouncing to "New chat".
   useEffect(() => {
     const chatIdFromUrl = searchParams.get("chat");
     if (chatIdFromUrl) {
@@ -212,8 +216,12 @@ function ChatApp() {
       const decoder = new TextDecoder();
       let buffer = "";
       let fullText = "";
-      let meta: { chatId: string; chatTitle: string; sources?: string[] } | null = null;
-      let pendingTitle: { chatId: string; title: string } | null = null;
+      let meta: { chatId: string; chatTitle: string; sources?: string[] } | null =
+        null;
+      // Decided once, right when the "meta" frame arrives, so both the
+      // immediate sidebar insert (in the loop) and the post-loop cleanup
+      // agree on whether this was a new chat or an existing one.
+      const isNewChatRef = { current: null as boolean | null };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -234,6 +242,34 @@ function ChatApp() {
 
           if (eventType === "meta") {
             meta = data;
+
+            // Apply the sidebar update for a NEW chat right away, as soon as
+            // meta arrives - not after the whole stream finishes. The
+            // AI-generated "title" event can arrive before the stream ends,
+            // and if the chat isn't in the `chats` list yet, that title
+            // update is a silent no-op (nothing to patch), so the sidebar
+            // is left showing the placeholder (the raw question) forever.
+            if (isNewChatRef.current === null) {
+              isNewChatRef.current = !activeChatId;
+            }
+            if (isNewChatRef.current) {
+              setActiveChatId(data.chatId);
+              router.replace(`/?chat=${data.chatId}`, { scroll: false });
+              setChats((c) => [
+                {
+                  id: data.chatId,
+                  title: data.chatTitle,
+                  updated_at: new Date().toISOString(),
+                },
+                ...c,
+              ]);
+            }
+
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantId ? { ...msg, sources: data.sources } : msg
+              )
+            );
           } else if (eventType === "delta") {
             fullText += data.text;
             const snapshot = fullText;
@@ -251,9 +287,6 @@ function ChatApp() {
               )
             );
           } else if (eventType === "title") {
-            // Capture for new-chat handling after the loop, AND update
-            // immediately if the chat already exists in the sidebar.
-            pendingTitle = data;
             setChats((c) =>
               c.map((chat) =>
                 chat.id === data.chatId ? { ...chat, title: data.title } : chat
@@ -263,60 +296,26 @@ function ChatApp() {
         }
       }
 
-      if (meta) {
+      // New-chat sidebar insertion (and its sources patch) already happened
+      // as soon as the "meta" frame arrived, above - that's what lets the
+      // later "title" frame find the chat in the list and patch it with the
+      // real AI-generated title. Here we only need to bump/re-sort an
+      // EXISTING chat's updated_at, since that case has no earlier hook.
+      if (meta && isNewChatRef.current === false) {
         const m = meta as { chatId: string; chatTitle: string; sources?: string[] };
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantId ? { ...msg, sources: m.sources } : msg
-          )
-        );
-
-        const isNewChat = !activeChatId;
-        if (isNewChat) {
-          setActiveChatId(m.chatId);
-          router.replace(`/?chat=${m.chatId}`, { scroll: false });
-
-          // Use the LLM-generated title if we got one, otherwise fall back
-          // to the truncated question the backend sent in meta.
-          const finalTitle =
-            pendingTitle && pendingTitle.chatId === m.chatId
-              ? pendingTitle.title
-              : m.chatTitle;
-
-          setChats((c) => {
-            // Avoid duplicates if the chat somehow already got added
-            const without = c.filter((chat) => chat.id !== m.chatId);
-            return [
-              {
-                id: m.chatId,
-                title: finalTitle,
-                updated_at: new Date().toISOString(),
-              },
-              ...without,
-            ];
-          });
-        } else {
-          // Existing chat — bump to top
-          setChats((c) => {
-            const updated = c.map((chat) =>
-              chat.id === m.chatId
-                ? {
-                    ...chat,
-                    updated_at: new Date().toISOString(),
-                    ...(pendingTitle && pendingTitle.chatId === m.chatId
-                      ? { title: pendingTitle.title }
-                      : {}),
-                  }
-                : chat
-            );
-            updated.sort(
-              (a, b) =>
-                new Date(b.updated_at).getTime() -
-                new Date(a.updated_at).getTime()
-            );
-            return updated;
-          });
-        }
+        setChats((c) => {
+          const updated = c.map((chat) =>
+            chat.id === m.chatId
+              ? { ...chat, updated_at: new Date().toISOString() }
+              : chat
+          );
+          updated.sort(
+            (a, b) =>
+              new Date(b.updated_at).getTime() -
+              new Date(a.updated_at).getTime()
+          );
+          return updated;
+        });
       }
     } catch (err) {
       setMessages((m) =>
