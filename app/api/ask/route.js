@@ -1,16 +1,12 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { pipeline } from '@xenova/transformers';
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { streamText, generateText } from 'ai';  // ← generateText add kiya
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
-// Vercel's Hobby plan (with Fluid compute, on by default for new projects)
-// allows up to 300s per invocation, not 60s - bumping this so a slow
-// free-tier OpenRouter model + a cold-start embedding load don't get
-// killed by a timeout that's lower than what the plan actually allows.
 export const maxDuration = 300;
 
 const qdrant = new QdrantClient({
@@ -18,8 +14,6 @@ const qdrant = new QdrantClient({
   apiKey: process.env.QDRANT_API_KEY,
 });
 
-// OpenRouter exposes an OpenAI-compatible API, so we point the AI SDK's
-// OpenAI provider at it instead of api.openai.com.
 const openrouter = createOpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -41,75 +35,11 @@ async function embedText(text) {
   return Array.from(output.data);
 }
 
-// Fallback title if the LLM call fails - just a plain truncation.
 function truncateTitle(question) {
   const trimmed = question.trim().replace(/\s+/g, ' ');
   return trimmed.length > 60 ? `${trimmed.slice(0, 57)}...` : trimmed;
 }
 
-// Ask the LLM itself to summarize the opening question into a short title,
-// instead of just cutting the text off at N characters. Uses streamText
-// (the same call path already proven to work for the main answer) rather
-// than generateText, then collects the streamed chunks into a string.
-async function generateChatTitle(question) {
-  try {
-    const result = streamText({
-      model: openrouter(process.env.OPENROUTER_MODEL),
-      temperature: 0.2,
-      maxOutputTokens: 24, // bumped from 16 - avoids mid-word truncation on longer titles
-      // Folded the instructions into the single user-role message instead of
-      // a separate 'system' message. The AI SDK logs a warning that some
-      // models handle a 'system' role inconsistently, and with this small
-      // free model the instructions were apparently getting lost/ignored,
-      // so the completion just echoed the question back - which, after
-      // sanitizeTitle/truncateTitle, produced the exact same string as the
-      // placeholder title, so the "title" event never fired (see below).
-      messages: [
-        {
-          role: 'user',
-          content:
-            'Summarize the message below into a short conversation title, the way a chat app names a new conversation.\n\n' +
-            'Rules:\n' +
-            '- 2 to 5 words only.\n' +
-            '- Title Case (capitalize each main word).\n' +
-            '- Describe the specific topic or question, not the app or the policy in general.\n' +
-            '- No punctuation at the start or end (no quotes, no period, no question mark).\n' +
-            '- No filler words like "About", "Regarding", "Question", "Inquiry" unless essential to meaning.\n' +
-            '- Do not restate that it is a question. Do not add any explanation, prefix, or commentary.\n' +
-            '- Output the title text ONLY, nothing else.\n\n' +
-            'Message: "What is my deductible amount?"\n' +
-            'Title: Deductible Amount\n\n' +
-            'Message: "Does this policy cover flood damage?"\n' +
-            'Title: Flood Damage Coverage\n\n' +
-            'Message: "How do I file a claim after a break-in?"\n' +
-            'Title: Filing a Burglary Claim\n\n' +
-            'Message: "Can I add my dog to the liability coverage?"\n' +
-            'Title: Adding Dog Liability Coverage\n\n' +
-            `Message: "${question}"\n` +
-            'Title:',
-        },
-      ],
-    });
-
-    let raw = '';
-    for await (const delta of result.textStream) {
-      raw += delta;
-    }
-
-    // Temporary debug log - shows up in Vercel Logs under this request, so
-    // we can see exactly what the model returned if titles look off again.
-    console.log('Raw title completion:', JSON.stringify(raw));
-
-    const cleaned = sanitizeTitle(raw);
-    return cleaned || truncateTitle(question);
-  } catch (err) {
-    console.error('Title generation failed, falling back to truncation:', err);
-    return truncateTitle(question);
-  }
-}
-
-// Normalizes a cleaned title string into consistent Title Case, so the
-// output doesn't purely depend on the model following instructions.
 function toTitleCase(str) {
   const smallWords = new Set(['a', 'an', 'the', 'of', 'to', 'in', 'on', 'and', 'or', 'for']);
   return str
@@ -121,29 +51,80 @@ function toTitleCase(str) {
     .join(' ');
 }
 
-// Defends against the model ignoring instructions and echoing a full
-// sentence/preamble instead of a short title.
 function sanitizeTitle(raw) {
+  if (!raw) return '';
   let t = raw.trim();
 
-  // Strip common preambles some models add despite instructions.
-  t = t.replace(/^(title|chat title)\s*:\s*/i, '');
-  t = t.replace(/^(the user is asking about|this (chat|conversation) is about|about)\s*:?\s*/i, '');
+  // Strip common preambles some models add despite instructions
+  t = t.replace(/^(title|chat title)\s*[:：]\s*/i, '');
+  t = t.replace(/^(the user is asking about|this (chat|conversation) is about|about)\s*[:：]?\s*/i, '');
 
-  // Strip wrapping quotes and trailing punctuation.
+  // Strip wrapping quotes and trailing punctuation
   t = t.replace(/^["'\u201c\u2018]+|["'\u201d\u2019]+$/g, '');
-  t = t.replace(/[.?!]+$/g, '');
+  t = t.replace(/[.?!]+$/, '');
 
-  // Only keep the first line, in case the model added extra commentary.
+  // Only keep the first line
   t = t.split('\n')[0].trim();
 
-  // Hard cap the word count so a runaway sentence never slips through.
+  // Hard cap word count
   const words = t.split(/\s+/).filter(Boolean);
-  if (words.length > 6) {
-    t = words.slice(0, 6).join(' ');
-  }
+  if (words.length > 6) t = words.slice(0, 6).join(' ');
+
+  // Reject if it's describing the user instead of being a title
+  if (/\bthe user\b|\bthey (said|asked)\b|\bis asking\b|\buser asked\b/i.test(t)) return '';
 
   return t ? toTitleCase(t) : '';
+}
+
+// Fast path for greetings — no LLM call needed
+function isGreeting(text) {
+  const greetings = ['hi', 'hello', 'hey', 'hola', 'greetings', 'good morning', 'good afternoon', 'good evening'];
+  const lower = text.trim().toLowerCase();
+  return greetings.some(g => lower === g || lower.startsWith(g + ' ')) && lower.split(' ').length <= 3;
+}
+
+// KEY FIX: Use generateText (not streamText) — reliable for small outputs
+async function generateChatTitle(question) {
+  // Fast path: greetings ko "New Conversation" banao bina LLM call kiye
+  if (isGreeting(question)) {
+    return 'New Conversation';
+  }
+
+  try {
+    const { text } = await generateText({
+      model: openrouter(process.env.OPENROUTER_MODEL),
+      temperature: 0.1, // Low = more deterministic, instructions follow better
+      maxOutputTokens: 20,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a chat title generator. Create a short, professional title for a conversation.\n\n' +
+            'STRICT RULES:\n' +
+            '- 2 to 5 words only\n' +
+            '- Title Case (capitalize main words)\n' +
+            '- No punctuation, no quotes, no explanation\n' +
+            '- No filler words: About, Regarding, Question, Inquiry, User\n' +
+            '- Describe the specific topic, not the app or general policy\n' +
+            '- If the message is just a greeting, output exactly: New Conversation\n' +
+            '- Output ONLY the title text, absolutely nothing else\n\n' +
+            'Examples:\n' +
+            'Message: "What is my deductible amount?" → Deductible Amount\n' +
+            'Message: "Does this policy cover flood damage?" → Flood Damage Coverage\n' +
+            'Message: "How do I file a claim after a break-in?" → Filing Burglary Claim\n' +
+            'Message: "Can I add my dog to the liability coverage?" → Dog Liability Coverage\n' +
+            'Message: "hi" → New Conversation',
+        },
+        { role: 'user', content: question },
+      ],
+    });
+
+    const cleaned = sanitizeTitle(text);
+    return cleaned || truncateTitle(question);
+  } catch (err) {
+    console.error('Title generation failed, falling back to truncation:', err);
+    return truncateTitle(question);
+  }
 }
 
 const encoder = new TextEncoder();
@@ -179,9 +160,7 @@ export async function POST(req) {
       }
       chat = data;
     } else {
-      // Insert immediately with a fast placeholder title so streaming can
-      // start right away - the real LLM-generated title is filled in below,
-      // in the background, without blocking the answer.
+      // Insert immediately with a fast placeholder title so streaming can start right away
       const { data, error } = await supabase
         .from('chats')
         .insert([{ user_id: session.user.id, title: truncateTitle(question) }])
@@ -214,7 +193,7 @@ export async function POST(req) {
     const context = results.map(r => r.payload.text).join('\n\n');
     const sources = results.map(r => r.payload.text);
 
-    // Save the user's turn right away, so it's not lost if the stream fails
+    // Save the user's turn right away
     await supabase.from('messages').insert([{ chat_id: chat.id, role: 'user', content: question }]);
 
     const result = streamText({
@@ -244,15 +223,10 @@ export async function POST(req) {
       },
     });
 
-    // Kick this off now, in parallel with the answer stream below - it is
-    // NOT awaited here so it never delays the first token of the answer.
+    // Kick off title generation in parallel — NOT awaited so it never blocks the answer stream
     const titlePromise = isNewChat ? generateChatTitle(question) : null;
 
-    // Custom SSE stream: a "meta" frame with chat/source info up front,
-    // "delta" frames as the model's answer streams in, then the "title"
-    // frame (once background title generation finishes), and finally
-    // "done" - kept as the LAST event so a frontend that stops reading on
-    // "done" still receives the real title beforehand.
+    // Custom SSE stream
     const stream = new ReadableStream({
       async start(controller) {
         controller.enqueue(
@@ -269,8 +243,7 @@ export async function POST(req) {
           controller.enqueue(sseFrame('error', { message: err.message }));
         }
 
-        // Resolve and send the real title BEFORE "done", regardless of
-        // whether the answer stream succeeded or errored.
+        // Resolve and send the real title BEFORE "done"
         if (titlePromise) {
           try {
             const finalTitle = await titlePromise;
