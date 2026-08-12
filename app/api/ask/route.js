@@ -73,7 +73,13 @@ async function generateChatTitle(question) {
             'Message: "How do I file a claim after a break-in?"\n' +
             'Title: Filing a Burglary Claim\n\n' +
             'Message: "Can I add my dog to the liability coverage?"\n' +
-            'Title: Adding Dog Liability Coverage',
+            'Title: Adding Dog Liability Coverage\n\n' +
+            'Message: "hi"\n' +
+            'Title: New Conversation\n\n' +
+            'Message: "hello, are you there?"\n' +
+            'Title: New Conversation\n\n' +
+            'If the message is just a greeting, small talk, or has no clear ' +
+            'policy-related topic, respond with exactly: New Conversation',
         },
         { role: 'user', content: question },
       ],
@@ -125,6 +131,14 @@ function sanitizeTitle(raw) {
   const words = t.split(/\s+/).filter(Boolean);
   if (words.length > 6) {
     t = words.slice(0, 6).join(' ');
+  }
+
+  // Reject output that still looks like a description/commentary rather
+  // than a title (e.g. "The user said "hi" - this..."), which can happen
+  // for trivial messages the model doesn't have a clean topic for. Let the
+  // caller fall back to truncateTitle(question) instead.
+  if (/\bthe user\b|\bthey (said|asked)\b|\bis asking\b|["\u201c\u2018]/i.test(t)) {
+    return '';
   }
 
   return t ? toTitleCase(t) : '';
