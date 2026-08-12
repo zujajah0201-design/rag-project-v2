@@ -57,11 +57,18 @@ async function generateChatTitle(question) {
       model: openrouter(process.env.OPENROUTER_MODEL),
       temperature: 0.2,
       maxOutputTokens: 24, // bumped from 16 - avoids mid-word truncation on longer titles
+      // Folded the instructions into the single user-role message instead of
+      // a separate 'system' message. The AI SDK logs a warning that some
+      // models handle a 'system' role inconsistently, and with this small
+      // free model the instructions were apparently getting lost/ignored,
+      // so the completion just echoed the question back - which, after
+      // sanitizeTitle/truncateTitle, produced the exact same string as the
+      // placeholder title, so the "title" event never fired (see below).
       messages: [
         {
-          role: 'system',
+          role: 'user',
           content:
-            'Summarize the user\'s message into a short conversation title, the way a chat app names a new conversation.\n\n' +
+            'Summarize the message below into a short conversation title, the way a chat app names a new conversation.\n\n' +
             'Rules:\n' +
             '- 2 to 5 words only.\n' +
             '- Title Case (capitalize each main word).\n' +
@@ -77,9 +84,10 @@ async function generateChatTitle(question) {
             'Message: "How do I file a claim after a break-in?"\n' +
             'Title: Filing a Burglary Claim\n\n' +
             'Message: "Can I add my dog to the liability coverage?"\n' +
-            'Title: Adding Dog Liability Coverage',
+            'Title: Adding Dog Liability Coverage\n\n' +
+            `Message: "${question}"\n` +
+            'Title:',
         },
-        { role: 'user', content: question },
       ],
     });
 
@@ -87,6 +95,10 @@ async function generateChatTitle(question) {
     for await (const delta of result.textStream) {
       raw += delta;
     }
+
+    // Temporary debug log - shows up in Vercel Logs under this request, so
+    // we can see exactly what the model returned if titles look off again.
+    console.log('Raw title completion:', JSON.stringify(raw));
 
     const cleaned = sanitizeTitle(raw);
     return cleaned || truncateTitle(question);
@@ -262,8 +274,10 @@ export async function POST(req) {
         if (titlePromise) {
           try {
             const finalTitle = await titlePromise;
-            if (finalTitle && finalTitle !== chat.title) {
-              await supabase.from('chats').update({ title: finalTitle }).eq('id', chat.id);
+            if (finalTitle) {
+              if (finalTitle !== chat.title) {
+                await supabase.from('chats').update({ title: finalTitle }).eq('id', chat.id);
+              }
               controller.enqueue(sseFrame('title', { chatId: chat.id, title: finalTitle }));
             }
           } catch (err) {
