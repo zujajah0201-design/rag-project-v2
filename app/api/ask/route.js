@@ -23,15 +23,20 @@ const openrouter = createOpenAI({
 
 const COLLECTION_NAME = process.env.QDRANT_COLLECTION_NAME;
 
-// A separate, smaller model just for title generation. The main
-// OPENROUTER_MODEL (Nemotron 3 Ultra) is a reasoning model whose thinking
-// mode is controlled via an internal chat-template flag rather than a
-// system-prompt string, so it can't reliably be told to skip straight to a
-// short answer over the API - it kept spending the whole output budget on
-// hidden reasoning tokens and returning nothing visible. A plain instruct
-// model is a much better fit for a "shorten this into 3 words" task anyway.
-// Override with OPENROUTER_TITLE_MODEL if you want to point this elsewhere.
-const TITLE_MODEL = process.env.OPENROUTER_TITLE_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+// A separate model just for title generation, kept independent from the
+// main OPENROUTER_MODEL (Nemotron 3 Ultra) - that one is a reasoning model
+// whose thinking mode is controlled via an internal chat-template flag
+// rather than a system-prompt string, so it can't reliably be told over
+// the API to skip straight to a short answer; it kept spending its whole
+// output budget on hidden reasoning and returning nothing visible.
+//
+// Rather than hardcoding a specific free model slug (OpenRouter's free
+// catalog changes often - models get delisted or moved to paid with no
+// notice, which is exactly what happened here with llama-3.3-70b-instruct
+// going paid-only), this uses OpenRouter's own "openrouter/free" router.
+// It auto-selects from whichever free models are currently available.
+// https://openrouter.ai/openrouter/free
+const TITLE_MODEL = process.env.OPENROUTER_TITLE_MODEL || 'openrouter/free';
 
 let embedder;
 async function getEmbedder() {
@@ -85,7 +90,7 @@ async function attemptGenerateTitle(question) {
 // been observed to intermittently return nothing for this call even when
 // the same prompt succeeds moments later.
 async function generateChatTitle(question) {
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const cleaned = await attemptGenerateTitle(question);
       if (cleaned) return cleaned;
