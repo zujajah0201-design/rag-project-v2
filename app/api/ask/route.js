@@ -23,6 +23,16 @@ const openrouter = createOpenAI({
 
 const COLLECTION_NAME = process.env.QDRANT_COLLECTION_NAME;
 
+// A separate, smaller model just for title generation. The main
+// OPENROUTER_MODEL (Nemotron 3 Ultra) is a reasoning model whose thinking
+// mode is controlled via an internal chat-template flag rather than a
+// system-prompt string, so it can't reliably be told to skip straight to a
+// short answer over the API - it kept spending the whole output budget on
+// hidden reasoning tokens and returning nothing visible. A plain instruct
+// model is a much better fit for a "shorten this into 3 words" task anyway.
+// Override with OPENROUTER_TITLE_MODEL if you want to point this elsewhere.
+const TITLE_MODEL = process.env.OPENROUTER_TITLE_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+
 let embedder;
 async function getEmbedder() {
   if (!embedder) {
@@ -48,21 +58,13 @@ function truncateTitle(question) {
 // retry or fall back).
 async function attemptGenerateTitle(question) {
   const result = streamText({
-    model: openrouter(process.env.OPENROUTER_MODEL),
-    // Nemotron reasoning models default to "thinking on", which spends the
-    // output token budget on an internal chain-of-thought before ever
-    // writing visible text - for a tight budget like this, that reasoning
-    // alone can consume all of it, leaving nothing for the actual title.
-    // "detailed thinking off" is NVIDIA's documented system-prompt toggle
-    // to skip straight to a direct, concise answer.
-    // https://docs.nvidia.com/nim/large-language-models/latest/reasoning-model.html
-    temperature: 0,
-    maxOutputTokens: 80,
+    model: openrouter(TITLE_MODEL),
+    temperature: 0.2,
+    maxOutputTokens: 40,
     messages: [
       {
         role: 'system',
         content:
-          'detailed thinking off\n\n' +
           'Turn the user\'s message into a 2-5 word chat title, Title Case, no punctuation, no commentary - just the title.\n' +
           'Example - Message: "Does this policy cover flood damage?" -> Title: Flood Damage Coverage',
       },
