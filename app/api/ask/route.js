@@ -49,17 +49,20 @@ function truncateTitle(question) {
 async function attemptGenerateTitle(question) {
   const result = streamText({
     model: openrouter(process.env.OPENROUTER_MODEL),
-    temperature: 0.3,
+    // Nemotron reasoning models default to "thinking on", which spends the
+    // output token budget on an internal chain-of-thought before ever
+    // writing visible text - for a tight budget like this, that reasoning
+    // alone can consume all of it, leaving nothing for the actual title.
+    // "detailed thinking off" is NVIDIA's documented system-prompt toggle
+    // to skip straight to a direct, concise answer.
+    // https://docs.nvidia.com/nim/large-language-models/latest/reasoning-model.html
+    temperature: 0,
     maxOutputTokens: 80,
     messages: [
       {
         role: 'system',
-        // Kept intentionally short - the earlier version had 4 few-shot
-        // examples and a long rules list, which some free OpenRouter
-        // models struggled to follow reliably and occasionally returned
-        // an empty completion for. One example + a short rule list is
-        // easier for a weaker model to complete consistently.
         content:
+          'detailed thinking off\n\n' +
           'Turn the user\'s message into a 2-5 word chat title, Title Case, no punctuation, no commentary - just the title.\n' +
           'Example - Message: "Does this policy cover flood damage?" -> Title: Flood Damage Coverage',
       },
