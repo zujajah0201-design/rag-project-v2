@@ -268,12 +268,12 @@ export async function POST(req) {
       },
     });
 
-    // NOTE: title generation is intentionally NOT kicked off here in
-    // parallel with the answer stream anymore. Running two simultaneous
-    // requests against the same (often free-tier/rate-limited) OpenRouter
-    // model caused the title call to silently come back with an empty
-    // completion - no error, just nothing to work with. It's kicked off
-    // sequentially below, only after the answer stream finishes.
+    // Kicked off here, in parallel with the answer stream below - it's a
+    // different model/route now (TITLE_MODEL, not OPENROUTER_MODEL), so it
+    // no longer competes with the answer call for the same rate-limited
+    // model/key the way it used to. Not awaited yet, so it doesn't delay
+    // the first token of the answer.
+    const titlePromise = isNewChat ? generateChatTitle(question) : null;
 
     // Custom SSE stream: a "meta" frame with chat/source info up front,
     // "delta" frames as the model's answer streams in, then the "title"
@@ -296,12 +296,14 @@ export async function POST(req) {
           controller.enqueue(sseFrame('error', { message: err.message }));
         }
 
-        // Now that the answer call to OpenRouter is fully done, it's safe
-        // to make the title call - sequential, so it never competes with
-        // the answer stream for the same rate-limited model/key.
-        if (isNewChat) {
+        // Resolve and send the real title BEFORE "done" - by now the
+        // answer stream is finished, but since titlePromise was kicked off
+        // in parallel above (not after this point), most of its wait time
+        // already overlapped with the answer streaming instead of adding
+        // to it.
+        if (titlePromise) {
           try {
-            const finalTitle = await generateChatTitle(question);
+            const finalTitle = await titlePromise;
             if (finalTitle && finalTitle !== chat.title) {
               await supabase.from('chats').update({ title: finalTitle }).eq('id', chat.id);
               controller.enqueue(sseFrame('title', { chatId: chat.id, title: finalTitle }));
