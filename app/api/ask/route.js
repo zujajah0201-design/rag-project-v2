@@ -70,7 +70,9 @@ async function attemptGenerateTitle(question) {
       {
         role: 'system',
         content:
-          'Turn the user\'s message into a 2-5 word chat title, Title Case, no punctuation, no commentary - just the title.\n' +
+          'Turn the user\'s message into a 2-5 word chat title, Title Case, no punctuation.\n' +
+          'Respond with ONLY one line in this exact format, nothing before or after it: Title: <the title>\n' +
+          'Do not explain your reasoning or think out loud - go straight to that one line.\n' +
           'Example - Message: "Does this policy cover flood damage?" -> Title: Flood Damage Coverage',
       },
       { role: 'user', content: question },
@@ -116,20 +118,37 @@ function toTitleCase(str) {
 }
 
 // Defends against the model ignoring instructions and echoing a full
-// sentence/preamble instead of a short title.
+// sentence/preamble instead of a short title. Some free/reasoning models
+// write their chain-of-thought out as plain visible text rather than
+// hiding it, e.g.:
+//   "Here's a thinking process: the user wants a summary...
+//    Title: Flood Damage Coverage"
+// so this can't just grab the first line - it looks for an explicit
+// "Title:" line anywhere first, and otherwise falls back to the LAST
+// non-empty line, since a model that reasons out loud puts its actual
+// answer at the end, not the start.
 function sanitizeTitle(raw) {
-  let t = raw.trim();
+  const lines = raw.trim().split('\n').map(l => l.trim()).filter(Boolean);
+
+  let t = '';
+  const titleLine = lines.find(l => /^(title|chat title)\s*:/i.test(l));
+  if (titleLine) {
+    t = titleLine.replace(/^(title|chat title)\s*:\s*/i, '');
+  } else if (lines.length > 0) {
+    t = lines[lines.length - 1];
+  }
 
   // Strip common preambles some models add despite instructions.
   t = t.replace(/^(title|chat title)\s*:\s*/i, '');
   t = t.replace(/^(the user is asking about|this (chat|conversation) is about|about)\s*:?\s*/i, '');
+  // Reasoning-style openers that can still slip through as the "last line"
+  // if the model reasoned in a single unbroken paragraph.
+  t = t.replace(/^(here'?s?\s+(a|the|my)\s+thinking\s+process|let\s+me\s+think|okay|so|thinking)\s*[:,-]?\s*/i, '');
 
   // Strip wrapping quotes and trailing punctuation.
   t = t.replace(/^["'\u201c\u2018]+|["'\u201d\u2019]+$/g, '');
   t = t.replace(/[.?!]+$/g, '');
-
-  // Only keep the first line, in case the model added extra commentary.
-  t = t.split('\n')[0].trim();
+  t = t.trim();
 
   // Hard cap the word count so a runaway sentence never slips through.
   const words = t.split(/\s+/).filter(Boolean);
