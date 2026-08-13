@@ -43,67 +43,53 @@ function truncateTitle(question) {
   return trimmed.length > 60 ? `${trimmed.slice(0, 57)}...` : trimmed;
 }
 
-// Ask the LLM itself to summarize the opening question into a short title,
-// instead of just cutting the text off at N characters. Uses streamText
-// (the same call path already proven to work for the main answer) rather
-// than generateText, then collects the streamed chunks into a string.
-async function generateChatTitle(question) {
-  try {
-    const result = streamText({
-      model: openrouter(process.env.OPENROUTER_MODEL),
-      temperature: 0.2,
-      // Bumped from 24 - some free OpenRouter models spend part of this
-      // budget on hidden reasoning tokens before writing the visible title,
-      // so a tight cap can leave zero tokens for actual output and come
-      // back empty. 80 leaves headroom for that plus the actual title.
-      maxOutputTokens: 80,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Summarize the user\'s message into a short conversation title, the way a chat app names a new conversation.\n\n' +
-            'Rules:\n' +
-            '- 2 to 5 words only.\n' +
-            '- Title Case (capitalize each main word).\n' +
-            '- Describe the specific topic or question, not the app or the policy in general.\n' +
-            '- No punctuation at the start or end (no quotes, no period, no question mark).\n' +
-            '- No filler words like "About", "Regarding", "Question", "Inquiry" unless essential to meaning.\n' +
-            '- Do not restate that it is a question. Do not add any explanation, prefix, or commentary.\n' +
-            '- Output the title text ONLY, nothing else.\n\n' +
-            'Message: "What is my deductible amount?"\n' +
-            'Title: Deductible Amount\n\n' +
-            'Message: "Does this policy cover flood damage?"\n' +
-            'Title: Flood Damage Coverage\n\n' +
-            'Message: "How do I file a claim after a break-in?"\n' +
-            'Title: Filing a Burglary Claim\n\n' +
-            'Message: "Can I add my dog to the liability coverage?"\n' +
-            'Title: Adding Dog Liability Coverage',
-        },
-        { role: 'user', content: question },
-      ],
-    });
+// Makes a single attempt at the title call. Returns the sanitized title,
+// or '' if the model gave back nothing usable (caller decides whether to
+// retry or fall back).
+async function attemptGenerateTitle(question) {
+  const result = streamText({
+    model: openrouter(process.env.OPENROUTER_MODEL),
+    temperature: 0.3,
+    maxOutputTokens: 80,
+    messages: [
+      {
+        role: 'system',
+        // Kept intentionally short - the earlier version had 4 few-shot
+        // examples and a long rules list, which some free OpenRouter
+        // models struggled to follow reliably and occasionally returned
+        // an empty completion for. One example + a short rule list is
+        // easier for a weaker model to complete consistently.
+        content:
+          'Turn the user\'s message into a 2-5 word chat title, Title Case, no punctuation, no commentary - just the title.\n' +
+          'Example - Message: "Does this policy cover flood damage?" -> Title: Flood Damage Coverage',
+      },
+      { role: 'user', content: question },
+    ],
+  });
 
-    let raw = '';
-    for await (const delta of result.textStream) {
-      raw += delta;
-    }
-
-    const cleaned = sanitizeTitle(raw);
-
-    if (!cleaned) {
-      // No console.error here on purpose - this isn't a thrown exception,
-      // it's the model returning nothing usable. Logging it as its own
-      // line makes that distinction visible in Vercel logs instead of
-      // silently falling back and leaving no trace.
-      console.warn('Title generation returned empty/unusable output. Raw model output was:', JSON.stringify(raw));
-      return truncateTitle(question);
-    }
-
-    return cleaned;
-  } catch (err) {
-    console.error('Title generation failed, falling back to truncation:', err);
-    return truncateTitle(question);
+  let raw = '';
+  for await (const delta of result.textStream) {
+    raw += delta;
   }
+  return sanitizeTitle(raw);
+}
+
+// Ask the LLM itself to summarize the opening question into a short title,
+// instead of just cutting the text off at N characters. Retries once on an
+// empty completion before giving up - free-tier OpenRouter models have
+// been observed to intermittently return nothing for this call even when
+// the same prompt succeeds moments later.
+async function generateChatTitle(question) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const cleaned = await attemptGenerateTitle(question);
+      if (cleaned) return cleaned;
+      console.warn(`Title generation attempt ${attempt} returned empty/unusable output.`);
+    } catch (err) {
+      console.error(`Title generation attempt ${attempt} failed:`, err);
+    }
+  }
+  return truncateTitle(question);
 }
 
 // Normalizes a cleaned title string into consistent Title Case, so the
