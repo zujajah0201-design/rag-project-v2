@@ -242,9 +242,12 @@ export async function POST(req) {
       },
     });
 
-    // Kick this off now, in parallel with the answer stream below - it is
-    // NOT awaited here so it never delays the first token of the answer.
-    const titlePromise = isNewChat ? generateChatTitle(question) : null;
+    // NOTE: title generation is intentionally NOT kicked off here in
+    // parallel with the answer stream anymore. Running two simultaneous
+    // requests against the same (often free-tier/rate-limited) OpenRouter
+    // model caused the title call to silently come back with an empty
+    // completion - no error, just nothing to work with. It's kicked off
+    // sequentially below, only after the answer stream finishes.
 
     // Custom SSE stream: a "meta" frame with chat/source info up front,
     // "delta" frames as the model's answer streams in, then the "title"
@@ -267,11 +270,12 @@ export async function POST(req) {
           controller.enqueue(sseFrame('error', { message: err.message }));
         }
 
-        // Resolve and send the real title BEFORE "done", regardless of
-        // whether the answer stream succeeded or errored.
-        if (titlePromise) {
+        // Now that the answer call to OpenRouter is fully done, it's safe
+        // to make the title call - sequential, so it never competes with
+        // the answer stream for the same rate-limited model/key.
+        if (isNewChat) {
           try {
-            const finalTitle = await titlePromise;
+            const finalTitle = await generateChatTitle(question);
             if (finalTitle && finalTitle !== chat.title) {
               await supabase.from('chats').update({ title: finalTitle }).eq('id', chat.id);
               controller.enqueue(sseFrame('title', { chatId: chat.id, title: finalTitle }));
