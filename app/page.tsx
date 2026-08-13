@@ -218,6 +218,11 @@ function ChatApp() {
       let fullText = "";
       let meta: { chatId: string; chatTitle: string; sources?: string[] } | null =
         null;
+      // Captured separately from `meta` because the "title" SSE frame can
+      // arrive before this chat has been pushed into `chats` state (that
+      // only happens after the loop, in the isNewChat branch below). Relying
+      // on setChats alone would silently no-op for brand-new chats.
+      let generatedTitle: string | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -255,6 +260,9 @@ function ChatApp() {
               )
             );
           } else if (eventType === "title") {
+            generatedTitle = data.title;
+            // Covers the case where this chat already exists in sidebar
+            // state (rare for a "title" frame, but harmless to keep).
             setChats((c) =>
               c.map((chat) =>
                 chat.id === data.chatId ? { ...chat, title: data.title } : chat
@@ -279,7 +287,10 @@ function ChatApp() {
           setChats((c) => [
             {
               id: m.chatId,
-              title: m.chatTitle,
+              // Prefer the real LLM-generated title if it already arrived
+              // (it's sent before "done"); fall back to the placeholder
+              // truncated title only if generation failed or is still late.
+              title: generatedTitle || m.chatTitle,
               updated_at: new Date().toISOString(),
             },
             ...c,
