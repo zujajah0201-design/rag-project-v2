@@ -65,7 +65,12 @@ async function attemptGenerateTitle(question) {
   const result = streamText({
     model: openrouter(TITLE_MODEL),
     temperature: 0.2,
-    maxOutputTokens: 40,
+    // 40 wasn't enough headroom - openrouter/free frequently routes to a
+    // reasoning-capable model (most of the strong free models in 2026 are
+    // reasoning models), and even a "keep it short" instruction doesn't
+    // stop those from spending tokens on a hidden/visible thinking pass
+    // first. 300 leaves room for that plus the actual one-line title.
+    maxOutputTokens: 300,
     messages: [
       {
         role: 'system',
@@ -83,7 +88,14 @@ async function attemptGenerateTitle(question) {
   for await (const delta of result.textStream) {
     raw += delta;
   }
-  return sanitizeTitle(raw);
+  const cleaned = sanitizeTitle(raw);
+  if (!cleaned) {
+    // Debug aid - if this is still empty, the logged raw text tells us
+    // whether the model produced nothing at all vs. produced something
+    // sanitizeTitle failed to extract a title from.
+    console.warn('Title attempt produced no usable title. Raw output:', JSON.stringify(raw.slice(0, 500)));
+  }
+  return cleaned;
 }
 
 // Ask the LLM itself to summarize the opening question into a short title,
@@ -96,7 +108,6 @@ async function generateChatTitle(question) {
     try {
       const cleaned = await attemptGenerateTitle(question);
       if (cleaned) return cleaned;
-      console.warn(`Title generation attempt ${attempt} returned empty/unusable output.`);
     } catch (err) {
       console.error(`Title generation attempt ${attempt} failed:`, err);
     }
