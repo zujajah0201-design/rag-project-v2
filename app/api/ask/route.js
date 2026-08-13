@@ -1,11 +1,11 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { pipeline } from '@xenova/transformers';
+import { env, pipeline } from '@xenova/transformers';
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, generateText } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-
+env.cacheDir = '/tmp/.transformers-cache';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
